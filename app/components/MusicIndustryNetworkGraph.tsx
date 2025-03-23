@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
 
 interface Node {
@@ -48,10 +48,6 @@ const graphData: GraphData = {
 };
 
 const MusicIndustryNetworkGraph: React.FC = () => {
-  const [filteredData, setFilteredData] = useState<GraphData>(graphData);
-  const [filterEra, setFilterEra] = useState<string>("all");
-  const [filterType, setFilterType] = useState<string>("all");
-  const [showOnlyKey, setShowOnlyKey] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
 
@@ -71,30 +67,6 @@ const MusicIndustryNetworkGraph: React.FC = () => {
     setZoomLevel(1);
     setViewPosition({ x: 0, y: 0 });
   };
-
-  // 過濾數據
-  useEffect(() => {
-    let nodes = graphData.nodes;
-    
-    if (filterEra !== "all") {
-      nodes = nodes.filter(node => node.era === filterEra);
-    }
-    
-    if (filterType !== "all") {
-      nodes = nodes.filter(node => node.type === filterType);
-    }
-    
-    if (showOnlyKey) {
-      nodes = nodes.filter(node => node.key);
-    }
-    
-    const nodeIds = new Set(nodes.map(n => n.id));
-    const links = graphData.links.filter(link => 
-      nodeIds.has(link.source) && nodeIds.has(link.target)
-    );
-    
-    setFilteredData({ nodes, links });
-  }, [filterEra, filterType, showOnlyKey]);
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -120,7 +92,22 @@ const MusicIndustryNetworkGraph: React.FC = () => {
             transform: `scale(${zoomLevel}) translate(${viewPosition.x}px, ${viewPosition.y}px)`,
           }}
         >
-          {/* 這裡添加你的 SVG 元素 */}
+          {/* 渲染節點 */}
+          {graphData.nodes.map((node) => (
+            <g key={node.id} transform={`translate(${node.size * 2}, ${node.size * 2})`}>
+              <circle
+                r={node.size}
+                fill={node.group === 'hardware' ? '#3498db' : '#9b59b6'}
+              />
+              <text
+                dy=".35em"
+                textAnchor="middle"
+                className="text-sm fill-current"
+              >
+                {node.name}
+              </text>
+            </g>
+          ))}
         </svg>
       </div>
     </div>
