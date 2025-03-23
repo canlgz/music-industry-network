@@ -1,43 +1,58 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ZoomIn, ZoomOut, Info, RefreshCw, Clock } from 'lucide-react';
+import { ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
+
+interface Node {
+  id: string;
+  name: string;
+  group: string;
+  type: string;
+  year: string;
+  era: string;
+  size: number;
+  key: boolean;
+  description: string;
+  stats: string;
+}
+
+interface Link {
+  source: string;
+  target: string;
+}
+
+interface GraphData {
+  nodes: Node[];
+  links: Link[];
+}
 
 // 定義完整的數據結構，包含節點和連接關係
-const graphData = {
+const graphData: GraphData = {
   nodes: [
     // 硬體時代節點
-    { id: "vinyl", name: "黑膠唱片", group: "hardware", type: "medium", year: "1948", era: "hardware", size: 20, key: true,
-      description: "12吋33⅓轉 LP專輯格式成為標準，為專輯藝術提供載體", 
-      stats: "在1970年代銷量達到頂峰，全球每年超過5億張" },
+    {
+      id: "vinyl",
+      name: "黑膠唱片",
+      group: "hardware",
+      type: "medium",
+      year: "1948",
+      era: "hardware",
+      size: 20,
+      key: true,
+      description: "12吋33⅓轉 LP專輯格式成為標準，為專輯藝術提供載體",
+      stats: "在1970年代銷量達到頂峰，全球每年超過5億張"
+    }
     // ... 其他節點
   ],
-  links: [
-    // ... 連接
-  ]
+  links: []
 };
 
-// 定義不同類型節點的圖標和顏色
-const getNodeColor = (group: string) => {
-  switch(group) {
-    case 'hardware': return '#3498db';
-    case 'software': return '#9b59b6';
-    case 'data': return '#00bcd4';
-    case 'future': return '#4caf50';
-    default: return '#95a5a6';
-  }
-};
-
-const MusicIndustryNetworkGraph = () => {
-  const [selectedNode, setSelectedNode] = useState<any>(null);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [hoveredLink, setHoveredLink] = useState<any>(null);
-  const [filteredData, setFilteredData] = useState(graphData);
-  const [filterEra, setFilterEra] = useState("all");
-  const [filterType, setFilterType] = useState("all");
-  const [showOnlyKey, setShowOnlyKey] = useState(false);
-  const [timeView, setTimeView] = useState(true);
-  const [zoomLevel, setZoomLevel] = useState(1);
+const MusicIndustryNetworkGraph: React.FC = () => {
+  const [filteredData, setFilteredData] = useState<GraphData>(graphData);
+  const [filterEra, setFilterEra] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [showOnlyKey, setShowOnlyKey] = useState<boolean>(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -80,34 +95,6 @@ const MusicIndustryNetworkGraph = () => {
     
     setFilteredData({ nodes, links });
   }, [filterEra, filterType, showOnlyKey]);
-
-  // 處理節點點擊
-  const handleNodeClick = (node: any) => {
-    setSelectedNode(prev => prev?.id === node.id ? null : node);
-  };
-
-  // 獲取與節點相關的所有連接
-  const getRelatedLinks = (nodeId: string) => {
-    return filteredData.links.filter(link => 
-      link.source === nodeId || link.target === nodeId
-    );
-  };
-
-  // 獲取與節點相關的所有節點
-  const getRelatedNodes = (nodeId: string) => {
-    const relatedNodes: string[] = [];
-    
-    filteredData.links.forEach(link => {
-      if (link.source === nodeId && !relatedNodes.includes(link.target)) {
-        relatedNodes.push(link.target);
-      }
-      if (link.target === nodeId && !relatedNodes.includes(link.source)) {
-        relatedNodes.push(link.source);
-      }
-    });
-    
-    return relatedNodes;
-  };
 
   return (
     <div className="w-full h-full flex flex-col">
