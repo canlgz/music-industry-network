@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ZoomIn, ZoomOut, Info, Filter, Disc, Speaker, Smartphone, FileText, Database, Share2, PieChart, DollarSign, RefreshCw, Clock } from 'lucide-react';
 import _ from 'lodash';
@@ -503,7 +505,7 @@ const MusicIndustryNetworkGraph = () => {
             y1={source.y}
             x2={target.x}
             y2={target.y}
-            stroke={isHighlighted ? "#555" : "#999"}
+            stroke={isHighlighted ? "#333" : "#777"}
             strokeWidth={strokeWidth}
             onMouseEnter={() => setHoveredLink(link)}
             onMouseLeave={() => setHoveredLink(null)}
@@ -524,13 +526,13 @@ const MusicIndustryNetworkGraph = () => {
     
     return (
       <g>
-        <line x1={baseX} y1={50} x2={baseX} y2={800} stroke="#ccc" strokeWidth={1} />
+        <line x1={baseX} y1={50} x2={baseX} y2={800} stroke="#aaa" strokeWidth={1} />
         {years.map(year => {
           const x = baseX + ((year - 1940) / (2025 - 1940)) * maxWidth;
           return (
             <g key={year}>
-              <line x1={x} y1={50} x2={x} y2={800} stroke="#eee" strokeWidth={1} strokeDasharray="5,5" />
-              <text x={x} y={40} textAnchor="middle" fill="#666" fontSize={12}>{year}</text>
+              <line x1={x} y1={50} x2={x} y2={800} stroke="#ddd" strokeWidth={1} strokeDasharray="5,5" />
+              <text x={x} y={40} textAnchor="middle" fill="#333" fontSize={12}>{year}</text>
             </g>
           );
         })}
@@ -538,7 +540,7 @@ const MusicIndustryNetworkGraph = () => {
         {/* 時代分隔線 */}
         {Object.entries(baseY).map(([era, y], i) => (
           <g key={era}>
-            <line x1={baseX} y1={y-40} x2={baseX + maxWidth} y2={y-40} stroke="#eee" strokeWidth={1} />
+            <line x1={baseX} y1={y-40} x2={baseX + maxWidth} y2={y-40} stroke="#ddd" strokeWidth={1} />
             <text x={baseX - 10} y={y} textAnchor="end" fill={eraInfo[era].color} fontSize={14} fontWeight="bold">
               {eraInfo[era].title}
             </text>
@@ -670,7 +672,7 @@ const MusicIndustryNetworkGraph = () => {
         {/* 左側：圖表區域 */}
         <div 
           ref={containerRef}
-          className="w-3/4 h-full relative bg-gray-900 overflow-hidden"
+          className="w-3/4 h-full relative bg-white overflow-hidden"
           onMouseDown={handleMouseDown}
         >
           <svg 
