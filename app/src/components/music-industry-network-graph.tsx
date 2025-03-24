@@ -547,7 +547,7 @@ const MusicIndustryNetworkGraph = () => {
     });
   };
   
-  // 時間軸標記
+  // 渲染時間軸標記
   const renderTimelineMarkers = () => {
     if (!timeView) return null;
     
@@ -568,15 +568,31 @@ const MusicIndustryNetworkGraph = () => {
           );
         })}
         
-        {/* 時代分隔線 */}
-        {Object.entries(baseY).map(([era, y], i) => (
-          <g key={era}>
-            <line x1={baseX} y1={y-40} x2={baseX + maxWidth} y2={y-40} stroke="#ddd" strokeWidth={1} />
-            <text x={baseX - 10} y={y} textAnchor="end" fill={eraInfo[era].color} fontSize={14} fontWeight="bold">
-              {eraInfo[era].title}
-            </text>
-          </g>
-        ))}
+        {/* 時代分隔線和標籤 */}
+        <g>
+          <line x1={baseX} y1={baseY.hardware} x2={baseX + maxWidth} y2={baseY.hardware} stroke="#ddd" strokeWidth={1} />
+          <text x={baseX - 10} y={baseY.hardware + 5} textAnchor="end" fill={eraInfo.hardware.color} fontSize={14} fontWeight="bold">
+            {eraInfo.hardware.title}
+          </text>
+        </g>
+        <g>
+          <line x1={baseX} y1={baseY.software} x2={baseX + maxWidth} y2={baseY.software} stroke="#ddd" strokeWidth={1} />
+          <text x={baseX - 10} y={baseY.software + 5} textAnchor="end" fill={eraInfo.software.color} fontSize={14} fontWeight="bold">
+            {eraInfo.software.title}
+          </text>
+        </g>
+        <g>
+          <line x1={baseX} y1={baseY.data} x2={baseX + maxWidth} y2={baseY.data} stroke="#ddd" strokeWidth={1} />
+          <text x={baseX - 10} y={baseY.data + 5} textAnchor="end" fill={eraInfo.data.color} fontSize={14} fontWeight="bold">
+            {eraInfo.data.title}
+          </text>
+        </g>
+        <g>
+          <line x1={baseX} y1={baseY.future} x2={baseX + maxWidth} y2={baseY.future} stroke="#ddd" strokeWidth={1} />
+          <text x={baseX - 10} y={baseY.future + 5} textAnchor="end" fill={eraInfo.future.color} fontSize={14} fontWeight="bold">
+            {eraInfo.future.title}
+          </text>
+        </g>
       </g>
     );
   };
@@ -642,7 +658,7 @@ const MusicIndustryNetworkGraph = () => {
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-220px)] min-h-[500px]">
+    <div className="relative w-full h-[calc(100vh-220px)] min-h-[600px]">
       {/* 控制面板 */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
         <button 
@@ -667,11 +683,11 @@ const MusicIndustryNetworkGraph = () => {
           <RefreshCw size={18} className="text-gray-700 dark:text-gray-300" />
         </button>
         <button 
-          onClick={toggleLayout} 
+          onClick={() => setTimeView(!timeView)} 
           className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
-          title={layoutMode === 'timeline' ? '切換到力導向佈局' : '切換到時間軸佈局'}
+          title={timeView ? '切換到力導向佈局' : '切換到時間軸佈局'}
         >
-          {layoutMode === 'timeline' ? (
+          {timeView ? (
             <Clock size={18} className="text-gray-700 dark:text-gray-300" />
           ) : (
             <Share2 size={18} className="text-gray-700 dark:text-gray-300" />
@@ -682,35 +698,35 @@ const MusicIndustryNetworkGraph = () => {
       {/* 時代過濾器 */}
       <div className="absolute top-4 right-4 z-10 flex gap-2 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
         <button 
-          onClick={() => filterByEra(null)} 
-          className={`px-3 py-1 text-sm rounded-md ${selectedEra === null ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          onClick={() => setFilterEra("all")} 
+          className={`px-3 py-1 text-sm rounded-md ${filterEra === "all" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
         >
           全部
         </button>
         <button 
-          onClick={() => filterByEra('hardware')} 
-          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'hardware' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          onClick={() => setFilterEra("hardware")} 
+          className={`px-3 py-1 text-sm rounded-md ${filterEra === "hardware" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
           style={{borderLeft: `3px solid ${eraInfo.hardware.color}`}}
         >
           硬體時代
         </button>
         <button 
-          onClick={() => filterByEra('software')} 
-          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'software' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          onClick={() => setFilterEra("software")} 
+          className={`px-3 py-1 text-sm rounded-md ${filterEra === "software" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
           style={{borderLeft: `3px solid ${eraInfo.software.color}`}}
         >
           軟體時代
         </button>
         <button 
-          onClick={() => filterByEra('data')} 
-          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'data' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          onClick={() => setFilterEra("data")} 
+          className={`px-3 py-1 text-sm rounded-md ${filterEra === "data" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
           style={{borderLeft: `3px solid ${eraInfo.data.color}`}}
         >
           資料時代
         </button>
         <button 
-          onClick={() => filterByEra('future')} 
-          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'future' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          onClick={() => setFilterEra("future")} 
+          className={`px-3 py-1 text-sm rounded-md ${filterEra === "future" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
           style={{borderLeft: `3px solid ${eraInfo.future.color}`}}
         >
           未來趨勢
@@ -752,17 +768,17 @@ const MusicIndustryNetworkGraph = () => {
       )}
       
       {/* 圖例 */}
-      {showLegend && (
-        <div className="absolute bottom-4 right-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-medium text-sm text-gray-900 dark:text-white">圖例</h4>
-            <button 
-              onClick={() => setShowLegend(false)}
-              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              隱藏
-            </button>
-          </div>
+      <div className="absolute bottom-4 right-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="font-medium text-sm text-gray-900 dark:text-white">圖例</h4>
+          <button 
+            onClick={() => setShowLegend(!showLegend)}
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            {showLegend ? '隱藏' : '顯示'}
+          </button>
+        </div>
+        {showLegend && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.hardware.color}}></div>
@@ -781,16 +797,21 @@ const MusicIndustryNetworkGraph = () => {
               <span className="text-xs text-gray-700 dark:text-gray-300">未來趨勢</span>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       
       {/* 視覺化畫布 */}
       <svg
         ref={svgRef}
         className="w-full h-full bg-white dark:bg-gray-800"
+        viewBox="0 0 1000 800"
+        style={{
+          transform: `scale(${zoomLevel}) translate(${viewPosition.x}px, ${viewPosition.y}px)`,
+          transformOrigin: '0 0'
+        }}
         onMouseDown={handleMouseDown}
       >
-        <g ref={containerRef}>
+        <g>
           {renderTimelineMarkers()}
           {renderLinks()}
           {renderNodes()}
