@@ -4,6 +4,26 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ZoomIn, ZoomOut, Info, Filter, Disc, Speaker, Smartphone, FileText, Database, Share2, PieChart, DollarSign, RefreshCw, Clock } from 'lucide-react';
 import _ from 'lodash';
 
+// 定義節點和鏈接的類型
+type NodeType = {
+  id: string;
+  name: string;
+  group: string;
+  year?: number;
+  type?: string;
+  icon?: string;
+  description?: string;
+  revenue?: number;
+  impact?: number;
+};
+
+type LinkType = {
+  source: string;
+  target: string;
+  type?: string;
+  strength?: number;
+};
+
 // 定義完整的數據結構，包含節點和連接關係
 const graphData = {
   nodes: [
@@ -192,12 +212,15 @@ const graphData = {
 };
 
 // 定義不同類型節點的圖標和顏色
-const getNodeColor = (group) => {
+const getNodeColor = (group: string): string => {
   switch(group) {
     case 'hardware': return '#3498db';
     case 'software': return '#9b59b6';
-    case 'data': return '#00bcd4';
-    case 'future': return '#4caf50';
+    case 'data': return '#e67e22';
+    case 'creator': return '#27ae60';
+    case 'platform': return '#f1c40f';
+    case 'service': return '#e74c3c';
+    case 'future': return '#1abc9c';
     default: return '#95a5a6';
   }
 };
@@ -441,14 +464,14 @@ const MusicIndustryNetworkGraph = () => {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // 渲染節點和連接
+  // 渲染節點
   const renderNodes = () => {
-    return filteredData.nodes.map(node => {
+    return filteredData.nodes.map((node: NodeType, i) => {
       const pos = nodePositions[node.id] || { x: 0, y: 0 };
       const isHighlighted = hoveredNode === node.id || selectedNode?.id === node.id;
-      const isConnected = hoveredNode && getRelatedNodes(hoveredNode).includes(node.id);
+      const isConnected = hoveredLink && (hoveredLink.source === node.id || hoveredLink.target === node.id);
+      const scale = (node.impact || 1) * 0.5;
       const opacity = !hoveredNode || isHighlighted || isConnected ? 1 : 0.3;
-      const scale = isHighlighted ? 1.2 : 1;
       
       return (
         <g 
@@ -583,6 +606,21 @@ const MusicIndustryNetworkGraph = () => {
         </div>
       </foreignObject>
     );
+  };
+
+  // 計算兩個節點間的距離
+  const getDistance = (nodeId1: string, nodeId2: string) => {
+    // ... existing code ...
+  };
+
+  // 獲取與某節點相連的所有節點
+  const getConnectedNodes = (nodeId: string) => {
+    // ... existing code ...
+  };
+
+  // 檢查兩個節點是否相連
+  const areNodesConnected = (nodeId1: string, nodeId2: string) => {
+    // ... existing code ...
   };
 
   return (
