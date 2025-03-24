@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "NEXT_IGNORE_ESLINT=true NEXT_IGNORE_TYPECHECK=true next build",
     "start": "next start",
     "lint": "next lint"
@@ -11,21 +11,21 @@
   "dependencies": {
     "lodash": "^4.17.21",
     "lucide-react": "latest",
-    "next": "15.2.3",
+    "next": "13.5.6",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "postcss-preset-env": "^9.3.0",
     "@types/lodash": "^4.14.202",
     "@types/node": "^20",
     "@types/react": "18.2.52",
     "@types/react-dom": "18.2.18",
-    "@typescript-eslint/eslint-plugin": "^8.27.0",
-    "@typescript-eslint/parser": "^8.27.0",
-    "eslint": "^9.23.0",
-    "eslint-config-next": "^15.2.3",
-    "tailwindcss": "^4",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "13.5.6",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }
 }
