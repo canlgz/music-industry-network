@@ -9,12 +9,17 @@ type NodeType = {
   id: string;
   name: string;
   group: string;
-  year?: number;
+  year?: number | string;
   type?: string;
   icon?: string;
   description?: string;
   revenue?: number;
   impact?: number;
+  // 添加其他可能的屬性
+  era?: string;
+  size?: number;
+  key?: boolean;
+  stats?: string;
 };
 
 type LinkType = {
