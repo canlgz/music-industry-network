@@ -283,6 +283,9 @@ const MusicIndustryNetworkGraph = () => {
   const [timeView, setTimeView] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
+  const [layoutMode, setLayoutMode] = useState<'timeline' | 'force'>('timeline');
+  const [selectedEra, setSelectedEra] = useState<string | null>(null);
+  const [showLegend, setShowLegend] = useState(true);
 
   const svgRef = useRef(null);
   const containerRef = useRef(null);
@@ -628,219 +631,172 @@ const MusicIndustryNetworkGraph = () => {
     // ... existing code ...
   };
 
-  return (
-    <div className="w-full h-full flex flex-col">
-      {/* 控制面板 */}
-      <div className="p-4 bg-white border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">音樂產業生態系統：從硬體到軟體再到資料的演變</h1>
-        <div className="flex flex-wrap items-center justify-between">
-          <div className="flex space-x-2 my-2">
-            <select 
-              className="p-2 text-sm border border-gray-300 rounded bg-white"
-              value={filterEra}
-              onChange={(e) => setFilterEra(e.target.value)}
-            >
-              <option value="all">所有時代</option>
-              <option value="hardware">硬體主導時代</option>
-              <option value="software">軟體主導時代</option>
-              <option value="data">資料主導時代</option>
-              <option value="future">未來趨勢</option>
-            </select>
-            
-            <select 
-              className="p-2 text-sm border border-gray-300 rounded bg-white"
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="all">所有類型</option>
-              <option value="medium">媒介</option>
-              <option value="device">設備</option>
-              <option value="business">商業模式</option>
-              <option value="platform">平台</option>
-              <option value="technology">技術</option>
-              <option value="software">軟體</option>
-              <option value="asset">資產</option>
-              <option value="policy">政策</option>
-              <option value="channel">管道</option>
-            </select>
-            
-            <label className="flex items-center text-sm">
-              <input 
-                type="checkbox" 
-                className="mr-2"
-                checked={showOnlyKey}
-                onChange={() => setShowOnlyKey(!showOnlyKey)}
-              />
-              僅顯示關鍵節點
-            </label>
-          </div>
-          
-          <div className="flex space-x-3 my-2">
-            <button 
-              className="p-2 rounded bg-white border border-gray-300 flex items-center" 
-              onClick={() => setTimeView(!timeView)}
-            >
-              <Clock size={16} className="mr-1" />
-              {timeView ? '切換到網絡佈局' : '切換到時間軸佈局'}
-            </button>
-            
-            <button 
-              className="p-2 rounded bg-white border border-gray-300" 
-              onClick={resetView}
-            >
-              <RefreshCw size={16} />
-            </button>
-            
-            <div className="flex items-center space-x-1">
-              <button 
-                className="p-2 rounded bg-white border border-gray-300" 
-                onClick={decreaseZoom}
-              >
-                <ZoomOut size={16} />
-              </button>
-              <span className="text-sm">{Math.round(zoomLevel * 100)}%</span>
-              <button 
-                className="p-2 rounded bg-white border border-gray-300" 
-                onClick={increaseZoom}
-              >
-                <ZoomIn size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+  // 切換佈局模式
+  const toggleLayout = () => {
+    setLayoutMode(layoutMode === 'timeline' ? 'force' : 'timeline');
+  };
+  
+  // 過濾特定時代的節點
+  const filterByEra = (era: string | null) => {
+    setSelectedEra(era);
+  };
 
-      {/* 主內容區 */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* 左側：圖表區域 */}
-        <div 
-          ref={containerRef}
-          className="w-3/4 h-full relative bg-white overflow-hidden"
-          onMouseDown={handleMouseDown}
+  return (
+    <div className="relative w-full h-[calc(100vh-220px)] min-h-[500px]">
+      {/* 控制面板 */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
+        <button 
+          onClick={increaseZoom} 
+          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          title="放大"
         >
-          <svg 
-            ref={svgRef}
-            width="100%" 
-            height="100%" 
-            viewBox="0 0 1000 800"
-            style={{
-              transform: `scale(${zoomLevel}) translate(${viewPosition.x}px, ${viewPosition.y}px)`,
-              transformOrigin: '0 0'
-            }}
-          >
-            {renderTimelineMarkers()}
-            {renderLinks()}
-            {renderNodes()}
-            {renderLinkTooltip()}
-          </svg>
-          
-          {/* 圖例 */}
-          <div className="absolute bottom-4 left-4 bg-white bg-opacity-80 p-3 rounded-lg">
-            <div className="text-sm font-semibold mb-2">時代圖例：</div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(eraInfo).map(([era, info]) => (
-                <div key={era} className="flex items-center">
-                  <div style={{ backgroundColor: info.color }} className="w-3 h-3 rounded-full mr-1"></div>
-                  <span className="text-xs">{info.title}</span>
-                </div>
-              ))}
-            </div>
-            
-            <div className="text-sm font-semibold mt-2 mb-1">節點類型：</div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(nodeTypes).map(([type, info]) => (
-                <div key={type} className="flex items-center">
-                  <div style={{ backgroundColor: info.color }} className="w-3 h-3 rounded-full mr-1"></div>
-                  <span className="text-xs">{info.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {/* 右側：詳情面板 */}
-        <div className="w-1/4 bg-white overflow-y-auto border-l border-gray-200 p-4">
-          {selectedNode ? (
-            <div>
-              <div className="mb-4">
-                <div style={{ backgroundColor: getNodeColor(selectedNode.group) }} className="w-full h-2 mb-2 rounded-full"></div>
-                <h2 className="text-2xl font-bold">{selectedNode.name}</h2>
-                <div className="flex items-center text-gray-500 mt-1">
-                  <Clock size={16} className="mr-1" />
-                  <span>{selectedNode.year}</span>
-                  <span className="mx-2">•</span>
-                  <span>{eraInfo[selectedNode.era].title}</span>
-                </div>
-                <div className="mt-2">
-                  <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
-                    {nodeTypes[selectedNode.type]?.label || selectedNode.type}
-                  </span>
-                  {selectedNode.key && (
-                    <span className="ml-2 px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-800">
-                      關鍵節點
-                    </span>
-                  )}
-                </div>
-              </div>
-              
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold mb-1">詳細說明</h3>
-                <p className="text-gray-700">{selectedNode.description}</p>
-              </div>
-              
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold mb-1">關鍵數據</h3>
-                <p className="text-gray-700">{selectedNode.stats}</p>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="font-semibold mb-2">相關連接</h3>
-                <div className="space-y-2">
-                  {selectedNodeConnections.map((link, idx) => {
-                    const otherNodeId = link.source === selectedNode.id ? link.target : link.source;
-                    const otherNode = filteredData.nodes.find(n => n.id === otherNodeId);
-                    
-                    if (!otherNode) return null;
-                    
-                    return (
-                      <div key={idx} className="p-2 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer"
-                        onClick={() => handleNodeClick(otherNode)}>
-                        <div className="flex items-center">
-                          <div style={{ backgroundColor: getNodeColor(otherNode.group) }} className="w-2 h-2 rounded-full mr-2"></div>
-                          <span className="font-medium">{otherNode.name}</span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">{link.description}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-2">時代背景</h3>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-gray-700">{eraInfo[selectedNode.era].description}</p>
-                </div>
-              </div>
-            </div>
+          <ZoomIn size={18} className="text-gray-700 dark:text-gray-300" />
+        </button>
+        <button 
+          onClick={decreaseZoom} 
+          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          title="縮小"
+        >
+          <ZoomOut size={18} className="text-gray-700 dark:text-gray-300" />
+        </button>
+        <button 
+          onClick={resetView} 
+          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          title="重置視圖"
+        >
+          <RefreshCw size={18} className="text-gray-700 dark:text-gray-300" />
+        </button>
+        <button 
+          onClick={toggleLayout} 
+          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          title={layoutMode === 'timeline' ? '切換到力導向佈局' : '切換到時間軸佈局'}
+        >
+          {layoutMode === 'timeline' ? (
+            <Clock size={18} className="text-gray-700 dark:text-gray-300" />
           ) : (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center p-6">
-                <Info size={32} className="mx-auto mb-3 text-gray-400" />
-                <h3 className="text-lg font-semibold mb-1">網絡圖操作指南</h3>
-                <ul className="text-sm text-gray-600 text-left space-y-2 mt-4">
-                  <li>• 點擊節點查看詳細信息</li>
-                  <li>• 懸停節點顯示關聯關係</li>
-                  <li>• 拖拽可移動整個視圖</li>
-                  <li>• 使用縮放按鈕調整視圖大小</li>
-                  <li>• 切換時間軸/網絡佈局模式</li>
-                  <li>• 使用上方過濾器選擇時代和類型</li>
-                </ul>
-              </div>
+            <Share2 size={18} className="text-gray-700 dark:text-gray-300" />
+          )}
+        </button>
+      </div>
+      
+      {/* 時代過濾器 */}
+      <div className="absolute top-4 right-4 z-10 flex gap-2 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
+        <button 
+          onClick={() => filterByEra(null)} 
+          className={`px-3 py-1 text-sm rounded-md ${selectedEra === null ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+        >
+          全部
+        </button>
+        <button 
+          onClick={() => filterByEra('hardware')} 
+          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'hardware' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          style={{borderLeft: `3px solid ${eraInfo.hardware.color}`}}
+        >
+          硬體時代
+        </button>
+        <button 
+          onClick={() => filterByEra('software')} 
+          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'software' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          style={{borderLeft: `3px solid ${eraInfo.software.color}`}}
+        >
+          軟體時代
+        </button>
+        <button 
+          onClick={() => filterByEra('data')} 
+          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'data' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          style={{borderLeft: `3px solid ${eraInfo.data.color}`}}
+        >
+          資料時代
+        </button>
+        <button 
+          onClick={() => filterByEra('future')} 
+          className={`px-3 py-1 text-sm rounded-md ${selectedEra === 'future' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+          style={{borderLeft: `3px solid ${eraInfo.future.color}`}}
+        >
+          未來趨勢
+        </button>
+      </div>
+      
+      {/* 節點詳情面板 */}
+      {selectedNode && (
+        <div className="absolute bottom-4 left-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700 max-w-md">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">{selectedNode.name}</h3>
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
+            <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800">
+              {selectedNode.type || '未分類'}
+            </span>
+            <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800">
+              {selectedNode.year || '未知年份'}
+            </span>
+            {selectedNode.era && (
+              <span className="px-2 py-1 rounded-full" style={{backgroundColor: getNodeColor(selectedNode.group) + '20', color: getNodeColor(selectedNode.group)}}>
+                {eraInfo[selectedNode.era]?.title || selectedNode.era}
+              </span>
+            )}
+          </div>
+          {selectedNode.description && (
+            <p className="text-gray-700 dark:text-gray-300 text-sm mb-2">{selectedNode.description}</p>
+          )}
+          {selectedNode.stats && (
+            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedNode.stats}</p>
             </div>
           )}
+          <button 
+            onClick={() => setSelectedNode(null)} 
+            className="mt-3 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            關閉
+          </button>
         </div>
-      </div>
+      )}
+      
+      {/* 圖例 */}
+      {showLegend && (
+        <div className="absolute bottom-4 right-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-sm text-gray-900 dark:text-white">圖例</h4>
+            <button 
+              onClick={() => setShowLegend(false)}
+              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              隱藏
+            </button>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.hardware.color}}></div>
+              <span className="text-xs text-gray-700 dark:text-gray-300">硬體時代</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.software.color}}></div>
+              <span className="text-xs text-gray-700 dark:text-gray-300">軟體時代</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.data.color}}></div>
+              <span className="text-xs text-gray-700 dark:text-gray-300">資料時代</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.future.color}}></div>
+              <span className="text-xs text-gray-700 dark:text-gray-300">未來趨勢</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 視覺化畫布 */}
+      <svg
+        ref={svgRef}
+        className="w-full h-full bg-white dark:bg-gray-800"
+        onMouseDown={handleMouseDown}
+      >
+        <g ref={containerRef}>
+          {renderTimelineMarkers()}
+          {renderLinks()}
+          {renderNodes()}
+          {renderLinkTooltip()}
+        </g>
+      </svg>
     </div>
   );
 };
