@@ -1,23 +1,22 @@
+import { Metadata } from 'next';
 import MusicIndustryNetworkGraph from './src/components/music-industry-network-graph';
+
+export const metadata: Metadata = {
+  title: '音樂產業生態系統：從硬體到軟體再到資料的演變',
+  description: '用互動式網絡圖可視化音樂產業從早期硬體到現代數據驅動生態系統的演變',
+};
 
 export default function Home() {
   return (
-    <main className="flex flex-col min-h-screen p-4 md:p-8 bg-[#f9fafb] dark:bg-[#111827]">
-      <header className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-          音樂產業網絡可視化
-        </h1>
-        <p className="text-gray-600 dark:text-gray-300 max-w-3xl">
-          這個互動式視覺化展示了音樂產業從硬體時代到資料時代的演變。您可以拖動節點、縮放視圖，並點擊各個元素了解更多信息。
-        </p>
-      </header>
+    <main className="flex flex-col min-h-screen">
+      <h1 className="text-2xl font-bold text-center mt-4 mb-2">音樂產業生態系統：從硬體到軟體再到資料的演變</h1>
       
-      <div className="flex-grow w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="flex-1 relative">
         <MusicIndustryNetworkGraph />
       </div>
       
-      <footer className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-        <p>© 2024 音樂產業網絡研究 | 數據來源：公開行業資料</p>
+      <footer className="text-center text-gray-500 text-xs py-2">
+        © {new Date().getFullYear()} 音樂產業網絡可視化 | 版權所有
       </footer>
     </main>
   );

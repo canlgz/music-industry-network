@@ -1,32 +1,32 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ZoomIn, ZoomOut, Info, Filter, Disc, Speaker, Smartphone, FileText, Database, Share2, PieChart, DollarSign, RefreshCw, Clock } from 'lucide-react';
 import _ from 'lodash';
 
-// 定義節點和鏈接的類型
-type NodeType = {
+// 定義節點類型
+interface NodeType {
   id: string;
   name: string;
-  group: string;
-  year?: number | string;
+  group: string | number;
   type?: string;
-  icon?: string;
-  description?: string;
-  revenue?: number;
-  impact?: number;
-  // 添加其他可能的屬性
+  year?: string | number;
   era?: string;
+  description?: string;
+  stats?: string;
+  connections?: Array<{text: string; color?: string}>;
+  impact?: string;
   size?: number;
   key?: boolean;
-  stats?: string;
-};
+}
 
+// 定義連接類型
 type LinkType = {
   source: string;
   target: string;
+  value: number;
+  description?: string;
   type?: string;
-  strength?: number;
 };
 
 // 定義完整的數據結構，包含節點和連接關係
@@ -217,44 +217,36 @@ const graphData = {
 };
 
 // 定義不同類型節點的圖標和顏色
-const getNodeColor = (group: string): string => {
-  switch(group) {
-    case 'hardware': return '#3498db';
-    case 'software': return '#9b59b6';
-    case 'data': return '#e67e22';
-    case 'creator': return '#27ae60';
-    case 'platform': return '#f1c40f';
-    case 'service': return '#e74c3c';
-    case 'future': return '#1abc9c';
-    default: return '#95a5a6';
+const getNodeColor = (group: string | number): string => {
+  if (typeof group === 'string') {
+    switch (group) {
+      case "hardware": return "#3B82F6";
+      case "software": return "#8B5CF6";
+      case "data": return "#06B6D4";
+      case "future": return "#10B981";
+      default: return "#888";
+    }
   }
+  return "#888";
 };
 
 // 定義不同時代的名稱和說明
 const eraInfo = {
   hardware: {
-    title: "硬體主導時代",
-    period: "1950s-1990s",
-    description: "實體媒介與硬體設備控制的時代，唱片公司通過掌握實體媒介生產與分發建立產業霸權。",
-    color: "#3498db"
+    title: "硬體時代",
+    color: "#3B82F6"
   },
   software: {
-    title: "軟體主導時代",
-    period: "1990s-2010s",
-    description: "數位格式脫離實體媒介限制，軟體平台控制音樂消費體驗，網路革命重構音樂傳播路徑。",
-    color: "#9b59b6"
+    title: "軟體時代",
+    color: "#8B5CF6"
   },
   data: {
-    title: "資料主導時代",
-    period: "2010-至今",
-    description: "從擁有轉向訪問的消費模式，使用者行為資料成為核心資產，演算法推薦取代人工策展。",
-    color: "#00bcd4"
+    title: "資料時代",
+    color: "#06B6D4"
   },
   future: {
     title: "未來趨勢",
-    period: "2020s-",
-    description: "去中心化與再集中化的拉鋸，AI創作、NFT和區塊鏈技術帶來潛在變革，但平台壟斷仍在強化。",
-    color: "#4caf50"
+    color: "#10B981"
   }
 };
 
@@ -273,9 +265,9 @@ const nodeTypes = {
 
 // 互動式網絡圖組件
 const MusicIndustryNetworkGraph = () => {
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [hoveredNode, setHoveredNode] = useState(null);
-  const [hoveredLink, setHoveredLink] = useState(null);
+  const [selectedNode, setSelectedNode] = useState<NodeType | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [hoveredLink, setHoveredLink] = useState<LinkType | null>(null);
   const [filteredData, setFilteredData] = useState(graphData);
   const [filterEra, setFilterEra] = useState("all");
   const [filterType, setFilterType] = useState("all");
@@ -283,270 +275,115 @@ const MusicIndustryNetworkGraph = () => {
   const [timeView, setTimeView] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
-  const [layoutMode, setLayoutMode] = useState<'timeline' | 'force'>('timeline');
-  const [selectedEra, setSelectedEra] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startDragPos, setStartDragPos] = useState({ x: 0, y: 0 });
+  const [linkTooltip, setLinkTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [showLinkLabels, setShowLinkLabels] = useState(false);
 
-  const svgRef = useRef(null);
-  const containerRef = useRef(null);
-  
-  // 視圖控制
-  const increaseZoom = () => {
-    setZoomLevel(prev => Math.min(prev * 1.2, 3));
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  // 定義時代基礎Y坐標
+  const baseY = {
+    hardware: 200,
+    software: 400,
+    data: 600,
+    future: 750
   };
-  
-  const decreaseZoom = () => {
-    setZoomLevel(prev => Math.max(prev / 1.2, 0.5));
-  };
-  
+
+  // 放大縮小控制
+  const increaseZoom = () => setZoomLevel(prev => Math.min(prev + 0.1, 2));
+  const decreaseZoom = () => setZoomLevel(prev => Math.max(prev - 0.1, 0.5));
   const resetView = () => {
     setZoomLevel(1);
     setViewPosition({ x: 0, y: 0 });
   };
-  
-  // 過濾數據
-  useEffect(() => {
-    let nodes = graphData.nodes;
-    
-    // 過濾時代
-    if (filterEra !== "all") {
-      nodes = nodes.filter(node => node.era === filterEra);
-    }
-    
-    // 過濾類型
-    if (filterType !== "all") {
-      nodes = nodes.filter(node => node.type === filterType);
-    }
-    
-    // 只顯示關鍵節點
-    if (showOnlyKey) {
-      nodes = nodes.filter(node => node.key);
-    }
-    
-    // 過濾連接
-    const nodeIds = new Set(nodes.map(n => n.id));
-    const links = graphData.links.filter(link => 
-      nodeIds.has(link.source) && nodeIds.has(link.target)
-    );
-    
-    setFilteredData({ nodes, links });
-  }, [filterEra, filterType, showOnlyKey]);
-  
-  // 計算時間軸佈局
-  const calculateTimelineLayout = () => {
-    // 基本尺寸參數
-    const baseX = 50;
-    const maxWidth = 900;
-    const baseY = {
-      hardware: 100,
-      software: 300,
-      data: 500,
-      future: 700
-    };
-    
-    // 時間範圍: 1940 - 2025
-    const minYear = 1940;
-    const maxYear = 2025;
-    const yearSpan = maxYear - minYear;
-    
-    // 為節點分配位置
-    const nodePositions = {};
-    
-    filteredData.nodes.forEach(node => {
-      const year = parseInt(node.year, 10) || 2000;
-      const normalizedYear = Math.max(minYear, Math.min(maxYear, year));
-      
-      // X軸基於年份
-      const x = baseX + ((normalizedYear - minYear) / yearSpan) * maxWidth;
-      
-      // Y軸基於時代和類型
-      let y = baseY[node.era] || 400;
-      
-      // 根據類型調整位置，防止重疊
-      switch(node.type) {
-        case 'medium': y -= 70; break;
-        case 'device': y -= 40; break;
-        case 'business': y += 40; break;
-        case 'platform': y += 20; break;
-        case 'technology': y -= 20; break;
-        default: y += 0;
-      }
-      
-      // 儲存位置
-      nodePositions[node.id] = { x, y };
+
+  // 滑鼠拖動控制
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    setStartDragPos({
+      x: e.clientX - viewPosition.x,
+      y: e.clientY - viewPosition.y
     });
-    
-    return nodePositions;
-  };
-  
-  // 計算簡單力導向佈局
-  const calculateForceLayout = () => {
-    // 簡單的初始位置，實際項目中可使用d3-force等庫進行更複雜的力導向佈局
-    const nodePositions = {};
-    
-    // 基於時代給予初始集群位置
-    const basePositions = {
-      hardware: { x: 200, y: 300 },
-      software: { x: 500, y: 300 },
-      data: { x: 800, y: 300 },
-      future: { x: 1100, y: 300 }
-    };
-    
-    // 在集群內分散節點
-    filteredData.nodes.forEach((node, i) => {
-      const base = basePositions[node.era] || { x: 500, y: 300 };
-      // 添加一些隨機性避免重疊
-      const angle = (i % 10) * (Math.PI * 2) / 10;
-      const radius = 100 + (node.size || 10) * 3;
-      
-      nodePositions[node.id] = {
-        x: base.x + Math.cos(angle) * radius,
-        y: base.y + Math.sin(angle) * radius
-      };
-    });
-    
-    return nodePositions;
-  };
-  
-  // 根據選擇的佈局模式計算節點位置
-  const nodePositions = timeView ? calculateTimelineLayout() : calculateForceLayout();
-  
-  // 處理節點點擊
-  const handleNodeClick = (node) => {
-    setSelectedNode(prev => prev?.id === node.id ? null : node);
-  };
-  
-  // 獲取兩節點間的連接
-  const getLinksBetween = (nodeId1, nodeId2) => {
-    return filteredData.links.filter(link => 
-      (link.source === nodeId1 && link.target === nodeId2) ||
-      (link.source === nodeId2 && link.target === nodeId1)
-    );
-  };
-  
-  // 獲取與節點相關的所有連接
-  const getRelatedLinks = (nodeId) => {
-    return filteredData.links.filter(link => 
-      link.source === nodeId || link.target === nodeId
-    );
-  };
-  
-  // 獲取與節點相關的所有節點
-  const getRelatedNodes = (nodeId) => {
-    const relatedNodes = [];
-    
-    filteredData.links.forEach(link => {
-      if (link.source === nodeId && !relatedNodes.includes(link.target)) {
-        relatedNodes.push(link.target);
-      }
-      if (link.target === nodeId && !relatedNodes.includes(link.source)) {
-        relatedNodes.push(link.source);
-      }
-    });
-    
-    return relatedNodes;
-  };
-  
-  // 拖動處理
-  const handleMouseDown = (e) => {
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startPos = { ...viewPosition };
-    
-    const handleMouseMove = (e) => {
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      
-      setViewPosition({
-        x: startPos.x + dx / zoomLevel,
-        y: startPos.y + dy / zoomLevel
-      });
-    };
-    
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-    
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // 渲染節點
-  const renderNodes = () => {
-    return filteredData.nodes.map((node: NodeType, i) => {
-      const pos = nodePositions[node.id] || { x: 0, y: 0 };
-      const isHighlighted = hoveredNode === node.id || selectedNode?.id === node.id;
-      const isConnected = hoveredLink && (hoveredLink.source === node.id || hoveredLink.target === node.id);
-      const scale = (node.impact || 1) * 0.5;
-      const opacity = !hoveredNode || isHighlighted || isConnected ? 1 : 0.3;
-      
-      return (
-        <g 
-          key={node.id}
-          transform={`translate(${pos.x}, ${pos.y}) scale(${scale})`}
-          opacity={opacity}
-          cursor="pointer"
-          onClick={() => handleNodeClick(node)}
-          onMouseEnter={() => setHoveredNode(node.id)}
-          onMouseLeave={() => setHoveredNode(null)}
-        >
-          <circle 
-            r={node.size / 2 || 8}
-            fill={getNodeColor(node.group)}
-            stroke={isHighlighted ? "#fff" : "none"}
-            strokeWidth={2}
-          />
-          {(zoomLevel > 0.8 || isHighlighted) && (
-            <text 
-              y={node.size / 2 + 12}
-              textAnchor="middle"
-              fill="#333"
-              fontSize={12}
-              fontWeight={node.key ? "bold" : "normal"}
-            >
-              {node.name}
-            </text>
-          )}
-        </g>
-      );
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      setViewPosition({
+        x: e.clientX - startDragPos.x,
+        y: e.clientY - startDragPos.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, startDragPos]);
+
+  // 節點篩選
+  const filteredNodes = useMemo(() => {
+    return graphData.nodes.filter(node => {
+      if (filterEra !== "all" && node.era !== filterEra) return false;
+      if (showOnlyKey && !node.key) return false;
+      return true;
     });
+  }, [filterEra, showOnlyKey]);
+
+  // 根據過濾節點過濾連接
+  const filteredLinks = useMemo(() => {
+    const nodeIds = new Set(filteredNodes.map(node => node.id));
+    return graphData.links.filter(link => 
+      nodeIds.has(link.source) && nodeIds.has(link.target)
+    );
+  }, [filteredNodes]);
+
+  // 獲取節點在視覺化中的位置
+  const getNodePosition = (node: NodeType, index: number) => {
+    const baseX = 50;
+    const maxWidth = 900;
+    const nodeYear = parseInt(String(node.year)) || 2000;
+    
+    let x, y;
+    
+    if (timeView) {
+      // 時間線視圖
+      x = baseX + ((nodeYear - 1940) / (2025 - 1940)) * maxWidth;
+      
+      // 根據時代設置y坐標
+      switch (node.era) {
+        case "hardware": y = baseY.hardware; break;
+        case "software": y = baseY.software; break;
+        case "data": y = baseY.data; break;
+        case "future": y = baseY.future; break;
+        default: y = 300;
+      }
+      
+      // 添加些許隨機性避免重疊，但使用固定種子確保位置一致
+      const deterministicRandom = Math.sin(index * 12345) * 0.5 + 0.5;
+      y += (deterministicRandom * 80 - 40);
+    } else {
+      // 簡單的力導向佈局
+      const rows = Math.ceil(Math.sqrt(filteredNodes.length));
+      const col = index % rows;
+      const row = Math.floor(index / rows);
+      
+      x = 200 + col * 120;
+      y = 150 + row * 120;
+    }
+    
+    return { x, y };
   };
-  
-  const renderLinks = () => {
-    return filteredData.links.map((link, i) => {
-      const source = nodePositions[link.source] || { x: 0, y: 0 };
-      const target = nodePositions[link.target] || { x: 0, y: 0 };
-      
-      const isHighlighted = 
-        (hoveredNode && (hoveredNode === link.source || hoveredNode === link.target)) ||
-        (selectedNode && (selectedNode.id === link.source || selectedNode.id === link.target));
-      
-      const opacity = !hoveredNode || isHighlighted ? 0.6 : 0.1;
-      const strokeWidth = isHighlighted ? 2 : 1;
-      
-      // 生成唯一ID，用於懸停檢測
-      const linkId = `link-${link.source}-${link.target}`;
-      
-      return (
-        <g key={i} opacity={opacity}>
-          <line
-            id={linkId}
-            x1={source.x}
-            y1={source.y}
-            x2={target.x}
-            y2={target.y}
-            stroke={isHighlighted ? "#333" : "#777"}
-            strokeWidth={strokeWidth}
-            onMouseEnter={() => setHoveredLink(link)}
-            onMouseLeave={() => setHoveredLink(null)}
-            style={{ cursor: 'pointer' }}
-          />
-        </g>
-      );
-    });
-  };
-  
+
   // 渲染時間軸標記
   const renderTimelineMarkers = () => {
     if (!timeView) return null;
@@ -571,253 +408,339 @@ const MusicIndustryNetworkGraph = () => {
         {/* 時代分隔線和標籤 */}
         <g>
           <line x1={baseX} y1={baseY.hardware} x2={baseX + maxWidth} y2={baseY.hardware} stroke="#ddd" strokeWidth={1} />
-          <text x={baseX - 10} y={baseY.hardware + 5} textAnchor="end" fill={eraInfo.hardware.color} fontSize={14} fontWeight="bold">
+          <text x={baseX - 10} y={baseY.hardware} textAnchor="end" fill={eraInfo.hardware.color} fontSize={14} fontWeight="bold">
             {eraInfo.hardware.title}
           </text>
         </g>
         <g>
           <line x1={baseX} y1={baseY.software} x2={baseX + maxWidth} y2={baseY.software} stroke="#ddd" strokeWidth={1} />
-          <text x={baseX - 10} y={baseY.software + 5} textAnchor="end" fill={eraInfo.software.color} fontSize={14} fontWeight="bold">
+          <text x={baseX - 10} y={baseY.software} textAnchor="end" fill={eraInfo.software.color} fontSize={14} fontWeight="bold">
             {eraInfo.software.title}
           </text>
         </g>
         <g>
           <line x1={baseX} y1={baseY.data} x2={baseX + maxWidth} y2={baseY.data} stroke="#ddd" strokeWidth={1} />
-          <text x={baseX - 10} y={baseY.data + 5} textAnchor="end" fill={eraInfo.data.color} fontSize={14} fontWeight="bold">
+          <text x={baseX - 10} y={baseY.data} textAnchor="end" fill={eraInfo.data.color} fontSize={14} fontWeight="bold">
             {eraInfo.data.title}
           </text>
         </g>
         <g>
           <line x1={baseX} y1={baseY.future} x2={baseX + maxWidth} y2={baseY.future} stroke="#ddd" strokeWidth={1} />
-          <text x={baseX - 10} y={baseY.future + 5} textAnchor="end" fill={eraInfo.future.color} fontSize={14} fontWeight="bold">
+          <text x={baseX - 10} y={baseY.future} textAnchor="end" fill={eraInfo.future.color} fontSize={14} fontWeight="bold">
             {eraInfo.future.title}
           </text>
         </g>
       </g>
     );
   };
-  
-  // 定義時代的Y軸基準位置
-  const baseY = {
-    hardware: 100,
-    software: 300,
-    data: 500,
-    future: 700
+
+  // 渲染節點
+  const renderNodes = () => {
+    return filteredNodes.map((node, i) => {
+      const { x, y } = getNodePosition(node, i);
+      
+      // 節點大小依據重要性
+      const radius = node.key ? 15 : 10;
+      
+      return (
+        <g 
+          key={node.id} 
+          transform={`translate(${x}, ${y})`}
+          onClick={() => setSelectedNode(node)}
+          style={{ cursor: 'pointer' }}
+        >
+          <circle 
+            r={radius} 
+            fill={getNodeColor(node.group)}
+            opacity={0.8}
+          />
+          <text 
+            textAnchor="middle" 
+            dy=".3em" 
+            fontSize={10} 
+            fill="#fff"
+            style={{ pointerEvents: 'none' }}
+          >
+            {node.name.substring(0, 2)}
+          </text>
+          <text 
+            textAnchor="start" 
+            x={radius + 5} 
+            fontSize={12} 
+            fill="#333"
+            style={{ pointerEvents: 'none' }}
+          >
+            {node.name}
+          </text>
+        </g>
+      );
+    });
   };
-  
-  // 查找與選定節點相關的連接
-  const selectedNodeConnections = selectedNode ? getRelatedLinks(selectedNode.id) : [];
-  
-  // 查找與選定節點相關的節點
-  const selectedNodeRelated = selectedNode ? 
-    selectedNodeConnections.map(link => 
-      link.source === selectedNode.id ? link.target : link.source
-    ) : [];
-  
-  // 連接懸停提示
-  const renderLinkTooltip = () => {
-    if (!hoveredLink) return null;
+
+  // 渲染連接
+  const renderLinks = () => {
+    // 建立節點ID到位置的映射
+    const nodePositions = filteredNodes.reduce((map, node, index) => {
+      map[node.id] = getNodePosition(node, index);
+      return map;
+    }, {} as Record<string, {x: number, y: number}>);
     
-    const source = nodePositions[hoveredLink.source] || { x: 0, y: 0 };
-    const target = nodePositions[hoveredLink.target] || { x: 0, y: 0 };
-    const midX = (source.x + target.x) / 2;
-    const midY = (source.y + target.y) / 2;
+    return filteredLinks.map((link, i) => {
+      // 獲取節點位置
+      const sourcePos = nodePositions[link.source];
+      const targetPos = nodePositions[link.target];
+      
+      if (!sourcePos || !targetPos) return null;
+      
+      // 線條中點，用於放置標籤
+      const midX = (sourcePos.x + targetPos.x) / 2;
+      const midY = (sourcePos.y + targetPos.y) / 2;
+      
+      // 區分重要連接和普通連接
+      const isImportant = link.value > 1;
+      
+      return (
+        <g key={`link-${i}`}>
+          <line 
+            x1={sourcePos.x} 
+            y1={sourcePos.y} 
+            x2={targetPos.x} 
+            y2={targetPos.y} 
+            stroke={isImportant ? "#6366F1" : "#9CA3AF"} 
+            strokeWidth={isImportant ? 2 : 1}
+            strokeOpacity={0.6}
+            strokeDasharray={isImportant ? "none" : "3,3"}
+            onMouseEnter={() => setLinkTooltip({ x: midX, y: midY, text: link.description || `連接值: ${link.value}` })}
+            onMouseLeave={() => setLinkTooltip(null)}
+          />
+          {showLinkLabels && link.description && (
+            <text 
+              x={midX} 
+              y={midY} 
+              textAnchor="middle" 
+              fontSize={10} 
+              fill="#666"
+              dy={-5}
+            >
+              {link.description}
+            </text>
+          )}
+        </g>
+      );
+    });
+  };
+
+  // 渲染連接工具提示
+  const renderLinkTooltip = () => {
+    if (!linkTooltip) return null;
     
     return (
-      <foreignObject x={midX - 100} y={midY - 40} width={200} height={80}>
-        <div className="p-2 bg-white rounded shadow-md text-sm border border-gray-200">
-          <p className="font-medium">{hoveredLink.description}</p>
-        </div>
-      </foreignObject>
+      <g transform={`translate(${linkTooltip.x}, ${linkTooltip.y})`}>
+        <rect 
+          x={-50} 
+          y={-25} 
+          width={100} 
+          height={20} 
+          rx={5} 
+          fill="black" 
+          fillOpacity={0.7}
+        />
+        <text 
+          textAnchor="middle" 
+          fontSize={10} 
+          fill="white"
+          dy={-10}
+        >
+          {linkTooltip.text}
+        </text>
+      </g>
     );
   };
 
-  // 計算兩個節點間的距離
-  const getDistance = (nodeId1: string, nodeId2: string) => {
-    // ... existing code ...
-  };
-
-  // 獲取與某節點相連的所有節點
-  const getConnectedNodes = (nodeId: string) => {
-    // ... existing code ...
-  };
-
-  // 檢查兩個節點是否相連
-  const areNodesConnected = (nodeId1: string, nodeId2: string) => {
-    // ... existing code ...
-  };
-
-  // 切換佈局模式
-  const toggleLayout = () => {
-    setLayoutMode(layoutMode === 'timeline' ? 'force' : 'timeline');
-  };
-  
-  // 過濾特定時代的節點
-  const filterByEra = (era: string | null) => {
-    setSelectedEra(era);
-  };
-
   return (
-    <div className="relative w-full h-[calc(100vh-220px)] min-h-[600px]">
+    <div className="relative w-full h-[calc(100vh-140px)]">
       {/* 控制面板 */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
+      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 bg-white rounded-sm shadow-sm p-1 border border-gray-200">
         <button 
           onClick={increaseZoom} 
-          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          className="p-1 bg-gray-100 hover:bg-gray-200 rounded-full"
           title="放大"
         >
-          <ZoomIn size={18} className="text-gray-700 dark:text-gray-300" />
+          <ZoomIn size={14} className="text-gray-700" />
         </button>
         <button 
           onClick={decreaseZoom} 
-          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          className="p-1 bg-gray-100 hover:bg-gray-200 rounded-full"
           title="縮小"
         >
-          <ZoomOut size={18} className="text-gray-700 dark:text-gray-300" />
+          <ZoomOut size={14} className="text-gray-700" />
         </button>
         <button 
           onClick={resetView} 
-          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          className="p-1 bg-gray-100 hover:bg-gray-200 rounded-full"
           title="重置視圖"
         >
-          <RefreshCw size={18} className="text-gray-700 dark:text-gray-300" />
+          <RefreshCw size={14} className="text-gray-700" />
         </button>
         <button 
           onClick={() => setTimeView(!timeView)} 
-          className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full"
+          className="p-1 bg-gray-100 hover:bg-gray-200 rounded-full"
           title={timeView ? '切換到力導向佈局' : '切換到時間軸佈局'}
         >
           {timeView ? (
-            <Clock size={18} className="text-gray-700 dark:text-gray-300" />
+            <Clock size={14} className="text-gray-700" />
           ) : (
-            <Share2 size={18} className="text-gray-700 dark:text-gray-300" />
+            <Share2 size={14} className="text-gray-700" />
           )}
         </button>
       </div>
       
-      {/* 時代過濾器 */}
-      <div className="absolute top-4 right-4 z-10 flex gap-2 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
-        <button 
-          onClick={() => setFilterEra("all")} 
-          className={`px-3 py-1 text-sm rounded-md ${filterEra === "all" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+      {/* 過濾器 */}
+      <div className="absolute top-2 right-2 z-10 flex gap-1 bg-white rounded-sm shadow-sm p-1 border border-gray-200">
+        <select 
+          className="text-xs border rounded p-1"
+          value={filterEra}
+          onChange={(e) => setFilterEra(e.target.value)}
         >
-          全部
-        </button>
-        <button 
-          onClick={() => setFilterEra("hardware")} 
-          className={`px-3 py-1 text-sm rounded-md ${filterEra === "hardware" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
-          style={{borderLeft: `3px solid ${eraInfo.hardware.color}`}}
-        >
-          硬體時代
-        </button>
-        <button 
-          onClick={() => setFilterEra("software")} 
-          className={`px-3 py-1 text-sm rounded-md ${filterEra === "software" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
-          style={{borderLeft: `3px solid ${eraInfo.software.color}`}}
-        >
-          軟體時代
-        </button>
-        <button 
-          onClick={() => setFilterEra("data")} 
-          className={`px-3 py-1 text-sm rounded-md ${filterEra === "data" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
-          style={{borderLeft: `3px solid ${eraInfo.data.color}`}}
-        >
-          資料時代
-        </button>
-        <button 
-          onClick={() => setFilterEra("future")} 
-          className={`px-3 py-1 text-sm rounded-md ${filterEra === "future" ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
-          style={{borderLeft: `3px solid ${eraInfo.future.color}`}}
-        >
-          未來趨勢
-        </button>
+          <option value="all">所有時代</option>
+          <option value="hardware">硬體時代</option>
+          <option value="software">軟體時代</option>
+          <option value="data">資料時代</option>
+          <option value="future">未來趨勢</option>
+        </select>
+        <label className="flex items-center text-xs ml-1">
+          <input 
+            type="checkbox"
+            className="mr-1"
+            checked={showOnlyKey}
+            onChange={(e) => setShowOnlyKey(e.target.checked)}
+          />
+          只顯示關鍵節點
+        </label>
+        <label className="flex items-center text-xs ml-1">
+          <input 
+            type="checkbox"
+            className="mr-1"
+            checked={showLinkLabels}
+            onChange={(e) => setShowLinkLabels(e.target.checked)}
+          />
+          顯示連接標籤
+        </label>
       </div>
       
-      {/* 節點詳情面板 */}
-      {selectedNode && (
-        <div className="absolute bottom-4 left-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700 max-w-md">
-          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">{selectedNode.name}</h3>
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
-            <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800">
-              {selectedNode.type || '未分類'}
-            </span>
-            <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800">
-              {selectedNode.year || '未知年份'}
-            </span>
-            {selectedNode.era && (
-              <span className="px-2 py-1 rounded-full" style={{backgroundColor: getNodeColor(selectedNode.group) + '20', color: getNodeColor(selectedNode.group)}}>
-                {eraInfo[selectedNode.era]?.title || selectedNode.era}
-              </span>
+      <div className="flex h-full">
+        {/* 視覺化畫布 */}
+        <div className={`flex-grow h-full ${selectedNode ? 'pr-72' : ''}`}>
+          <svg
+            ref={svgRef}
+            className="w-full h-full bg-white"
+            viewBox="0 0 1000 800"
+            preserveAspectRatio="xMidYMid meet"
+            style={{
+              transform: `scale(${zoomLevel}) translate(${viewPosition.x}px, ${viewPosition.y}px)`,
+              transformOrigin: '0 0'
+            }}
+            onMouseDown={handleMouseDown}
+          >
+            <g>
+              {renderTimelineMarkers()}
+              {renderLinks()}
+              {renderNodes()}
+              {renderLinkTooltip()}
+            </g>
+          </svg>
+        </div>
+        
+        {/* 節點詳情面板 */}
+        {selectedNode && (
+          <div className="absolute right-0 top-0 h-full w-72 border-l border-gray-200 bg-white overflow-y-auto p-4">
+            <div className="border-l-4 pl-3" style={{borderColor: getNodeColor(selectedNode.group)}}>
+              <h3 className="font-bold text-lg text-gray-900 mb-1">{selectedNode.name}</h3>
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                <span>{selectedNode.year || '未知年份'}</span>
+                {selectedNode.era && (
+                  <span>• {eraInfo[selectedNode.era]?.title || selectedNode.era}時代</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              {selectedNode.type && (
+                <div className="flex items-center mb-2">
+                  <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded mr-2">
+                    {nodeTypes[selectedNode.type]?.label || selectedNode.type}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {selectedNode.description && (
+              <div className="mt-3">
+                <h4 className="text-sm font-medium text-gray-700 mb-1">詳細說明</h4>
+                <p className="text-gray-600 text-sm">{selectedNode.description}</p>
+              </div>
             )}
-          </div>
-          {selectedNode.description && (
-            <p className="text-gray-700 dark:text-gray-300 text-sm mb-2">{selectedNode.description}</p>
-          )}
-          {selectedNode.stats && (
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedNode.stats}</p>
-            </div>
-          )}
-          <button 
-            onClick={() => setSelectedNode(null)} 
-            className="mt-3 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            關閉
-          </button>
-        </div>
-      )}
-      
-      {/* 圖例 */}
-      <div className="absolute bottom-4 right-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-medium text-sm text-gray-900 dark:text-white">圖例</h4>
-          <button 
-            onClick={() => setShowLegend(!showLegend)}
-            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            {showLegend ? '隱藏' : '顯示'}
-          </button>
-        </div>
-        {showLegend && (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.hardware.color}}></div>
-              <span className="text-xs text-gray-700 dark:text-gray-300">硬體時代</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.software.color}}></div>
-              <span className="text-xs text-gray-700 dark:text-gray-300">軟體時代</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.data.color}}></div>
-              <span className="text-xs text-gray-700 dark:text-gray-300">資料時代</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{backgroundColor: eraInfo.future.color}}></div>
-              <span className="text-xs text-gray-700 dark:text-gray-300">未來趨勢</span>
-            </div>
+            
+            {selectedNode.stats && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-1">關鍵數據</h4>
+                <p className="text-gray-600 text-sm">{selectedNode.stats}</p>
+              </div>
+            )}
+            
+            {selectedNode.connections && selectedNode.connections.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-1">相關連接</h4>
+                <ul className="text-sm space-y-2">
+                  {selectedNode.connections.map((conn, i) => (
+                    <li key={i} className="flex items-start">
+                      <span className="w-2 h-2 rounded-full mt-1.5 mr-2" style={{backgroundColor: conn.color || '#888'}}></span>
+                      <span className="text-gray-600">{conn.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {selectedNode.impact && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-1">時代背景</h4>
+                <p className="text-gray-600 text-sm">{selectedNode.impact}</p>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => setSelectedNode(null)} 
+              className="mt-4 text-xs text-gray-500 hover:text-gray-700"
+            >
+              關閉
+            </button>
           </div>
         )}
       </div>
       
-      {/* 視覺化畫布 */}
-      <svg
-        ref={svgRef}
-        className="w-full h-full bg-white dark:bg-gray-800"
-        viewBox="0 0 1000 800"
-        style={{
-          transform: `scale(${zoomLevel}) translate(${viewPosition.x}px, ${viewPosition.y}px)`,
-          transformOrigin: '0 0'
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        <g>
-          {renderTimelineMarkers()}
-          {renderLinks()}
-          {renderNodes()}
-          {renderLinkTooltip()}
-        </g>
-      </svg>
+      {/* 圖例 - 底部 */}
+      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/90 rounded-sm shadow-sm p-1 border border-gray-200">
+        <div className="flex items-center text-xs">
+          <span className="text-gray-500 mr-1">時代類別：</span>
+          <div className="flex items-center ml-1">
+            <div className="w-2 h-2 rounded-full" style={{backgroundColor: eraInfo.hardware.color}}></div>
+            <span className="text-gray-700 ml-1 mr-2">硬體時代</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-2 h-2 rounded-full" style={{backgroundColor: eraInfo.software.color}}></div>
+            <span className="text-gray-700 ml-1 mr-2">軟體時代</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-2 h-2 rounded-full" style={{backgroundColor: eraInfo.data.color}}></div>
+            <span className="text-gray-700 ml-1 mr-2">資料時代</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-2 h-2 rounded-full" style={{backgroundColor: eraInfo.future.color}}></div>
+            <span className="text-gray-700 ml-1 mr-2">未來趨勢</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
